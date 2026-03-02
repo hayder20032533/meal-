@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>مخطط الوجبات الأسبوعي</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0f14;
+    --surface: #161a24;
+    --card: #1e2433;
+    --border: #2a3148;
+    --accent: #f5a623;
+    --accent2: #e84393;
+    --accent3: #4cd964;
+    --text: #e8eaf0;
+    --muted: #7a82a0;
+    --breakfast: #ff7f50;
+    --lunch: #4cd964;
+    --dinner: #818cf8;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Cairo', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    direction: rtl;
+  }
+
+  /* noise texture */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container { max-width: 1400px; margin: 0 auto; padding: 20px; position: relative; z-index: 1; }
+
+  header {
+    text-align: center;
+    padding: 40px 0 30px;
+    position: relative;
+  }
+
+  header::after {
+    content: '';
+    display: block;
+    width: 120px;
+    height: 3px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    margin: 16px auto 0;
+    border-radius: 2px;
+  }
+
+  h1 {
+    font-size: clamp(2rem, 5vw, 3.5rem);
+    font-weight: 900;
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 60%, var(--dinner) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1.2;
+  }
+
+  .subtitle { color: var(--muted); margin-top: 8px; font-size: 1rem; }
+
+  /* Stats bar */
+  .stats-bar {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+    margin: 24px 0;
+  }
+
+  .stat-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px;
+    text-align: center;
+    transition: transform 0.2s;
+  }
+
+  .stat-card:hover { transform: translateY(-2px); }
+
+  .stat-value {
+    font-size: 1.8rem;
+    font-weight: 900;
+    color: var(--accent);
+  }
+
+  .stat-label { font-size: 0.75rem; color: var(--muted); margin-top: 4px; }
+
+  /* Legend */
+  .legend {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    color: var(--muted);
+  }
+
+  .legend-dot {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+  }
+
+  /* Table */
+  .table-wrapper {
+    overflow-x: auto;
+    border-radius: 18px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 800px;
+  }
+
+  thead th {
+    padding: 16px 12px;
+    font-weight: 700;
+    font-size: 0.9rem;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+
+  thead th:first-child { color: var(--muted); }
+  thead th:not(:first-child) { color: var(--text); }
+
+  .day-label {
+    font-weight: 700;
+    padding: 0 16px;
+    color: var(--text);
+    font-size: 0.95rem;
+  }
+
+  .today-col { background: rgba(245,166,35,0.05); }
+
+  tr:not(:last-child) td, tr:not(:last-child) th { border-bottom: 1px solid var(--border); }
+
+  td { padding: 10px 8px; vertical-align: top; }
+
+  /* Meal cell */
+  .meal-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .meal-item {
+    background: var(--card);
+    border-radius: 10px;
+    padding: 8px 10px;
+    position: relative;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 1px solid transparent;
+  }
+
+  .meal-item:hover { border-color: var(--accent); transform: scale(1.02); }
+
+  .meal-item.breakfast { border-right: 3px solid var(--breakfast); }
+  .meal-item.lunch     { border-right: 3px solid var(--lunch); }
+  .meal-item.dinner    { border-right: 3px solid var(--dinner); }
+
+  .meal-name { font-size: 0.82rem; font-weight: 600; line-height: 1.3; }
+  .meal-cal  { font-size: 0.72rem; color: var(--muted); margin-top: 2px; }
+
+  .add-btn {
+    background: transparent;
+    border: 1px dashed var(--border);
+    border-radius: 10px;
+    padding: 8px;
+    color: var(--muted);
+    font-size: 0.8rem;
+    cursor: pointer;
+    width: 100%;
+    text-align: center;
+    font-family: 'Cairo', sans-serif;
+    transition: all 0.2s;
+  }
+
+  .add-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  .day-total {
+    font-weight: 900;
+    font-size: 1rem;
+    color: var(--accent);
+    text-align: center;
+    padding: 12px;
+    white-space: nowrap;
+  }
+
+  /* Modal */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+  }
+
+  .modal-overlay.open { opacity: 1; pointer-events: all; }
+
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 28px;
+    width: min(480px, 95vw);
+    transform: translateY(20px);
+    transition: transform 0.3s;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  .modal-overlay.open .modal { transform: translateY(0); }
+
+  .modal h2 { font-size: 1.3rem; font-weight: 700; margin-bottom: 20px; }
+
+  .form-group { margin-bottom: 16px; }
+
+  label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 6px; }
+
+  input, select {
+    width: 100%;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 14px;
+    color: var(--text);
+    font-family: 'Cairo', sans-serif;
+    font-size: 0.9rem;
+    transition: border-color 0.2s;
+    direction: rtl;
+  }
+
+  input:focus, select:focus { outline: none; border-color: var(--accent); }
+
+  .suggestions {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-top: 4px;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+
+  .suggestion-item {
+    padding: 8px 14px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    display: flex;
+    justify-content: space-between;
+    transition: background 0.15s;
+  }
+
+  .suggestion-item:hover { background: var(--border); }
+  .suggestion-cal { color: var(--muted); }
+
+  .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+
+  .btn {
+    flex: 1;
+    padding: 12px;
+    border-radius: 10px;
+    border: none;
+    font-family: 'Cairo', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-primary {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: #fff;
+  }
+
+  .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+
+  .btn-secondary {
+    background: var(--card);
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+
+  .btn-danger {
+    background: #e84343;
+    color: #fff;
+  }
+
+  .remove-btn {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+    padding: 2px;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .meal-item:hover .remove-btn { opacity: 1; }
+  .remove-btn:hover { color: #e84343; }
+
+  .meal-type-badge {
+    font-size: 0.7rem;
+    padding: 2px 6px;
+    border-radius: 20px;
+    display: inline-block;
+    margin-bottom: 4px;
+    font-weight: 600;
+  }
+
+  .badge-breakfast { background: rgba(255,127,80,0.15); color: var(--breakfast); }
+  .badge-lunch     { background: rgba(76,217,100,0.15); color: var(--lunch); }
+  .badge-dinner    { background: rgba(129,140,248,0.15); color: var(--dinner); }
+
+  /* Weekly summary */
+  .weekly-summary {
+    margin-top: 20px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 20px;
+  }
+
+  .weekly-summary h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: 16px; }
+
+  .progress-bars { display: grid; gap: 10px; }
+
+  .progress-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.85rem;
+  }
+
+  .progress-label { min-width: 60px; color: var(--muted); }
+
+  .progress-bar-bg {
+    flex: 1;
+    height: 8px;
+    background: var(--card);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .progress-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.5s ease;
+  }
+
+  .progress-val { min-width: 60px; text-align: left; font-weight: 700; }
+
+  @media (max-width: 600px) {
+    .stats-bar { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>🍽️ مخطط الوجبات</h1>
+    <p class="subtitle">نظّم وجباتك الأسبوعية وتابع السعرات الحرارية بسهولة</p>
+  </header>
+
+  <div class="stats-bar" id="statsBar">
+    <div class="stat-card">
+      <div class="stat-value" id="totalWeekCal">0</div>
+      <div class="stat-label">إجمالي السعرات الأسبوعية</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="avgDayCal">0</div>
+      <div class="stat-label">متوسط اليومي</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="color:var(--breakfast)" id="totalBreakfast">0</div>
+      <div class="stat-label">🌅 سعرات الإفطار</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="color:var(--lunch)" id="totalLunch">0</div>
+      <div class="stat-label">☀️ سعرات الغداء</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="color:var(--dinner)" id="totalDinner">0</div>
+      <div class="stat-label">🌙 سعرات العشاء</div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:var(--breakfast)"></div> إفطار</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--lunch)"></div> غداء</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--dinner)"></div> عشاء</div>
+  </div>
+
+  <div class="table-wrapper">
+    <table id="mealTable">
+      <thead>
+        <tr>
+          <th></th>
+          <th>الأحد</th>
+          <th>الاثنين</th>
+          <th>الثلاثاء</th>
+          <th>الأربعاء</th>
+          <th>الخميس</th>
+          <th>الجمعة</th>
+          <th>السبت</th>
+          <th style="color:var(--accent)">المجموع</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+
+  <div class="weekly-summary">
+    <h3>📊 توزيع السعرات اليومية</h3>
+    <div class="progress-bars" id="progressBars"></div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <h2 id="modalTitle">إضافة وجبة</h2>
+    <div class="form-group">
+      <label>اسم الوجبة</label>
+      <input type="text" id="mealNameInput" placeholder="مثال: بيض مقلي، أرز بالدجاج..." autocomplete="off">
+      <div class="suggestions" id="suggestions" style="display:none"></div>
+    </div>
+    <div class="form-group">
+      <label>السعرات الحرارية (كيلو كالوري)</label>
+      <input type="number" id="mealCalInput" placeholder="مثال: 350" min="0">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal()">إلغاء</button>
+      <button class="btn btn-primary" onclick="saveMeal()">حفظ الوجبة</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const days = ['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
+const mealTypes = ['breakfast','lunch','dinner'];
+const mealLabels = { breakfast:'🌅 إفطار', lunch:'☀️ غداء', dinner:'🌙 عشاء' };
+const mealColors = { breakfast:'var(--breakfast)', lunch:'var(--lunch)', dinner:'var(--dinner)' };
+
+// Common Arabic food database
+const foodDB = [
+  {name:'بيض مسلوق (2 حبة)', cal:140},
+  {name:'بيض مقلي', cal:185},
+  {name:'شاي بالحليب', cal:60},
+  {name:'قهوة باللاتيه', cal:120},
+  {name:'خبز أبيض (شريحتان)', cal:160},
+  {name:'خبز أسمر (شريحتان)', cal:140},
+  {name:'جبنة قريش (100غ)', cal:98},
+  {name:'جبنة شيدر (30غ)', cal:120},
+  {name:'زبدة (15غ)', cal:108},
+  {name:'عسل (ملعقة)', cal:64},
+  {name:'مربى (ملعقة)', cal:55},
+  {name:'فول مدمس', cal:220},
+  {name:'حمص بالطحينة', cal:180},
+  {name:'فلافل (5 حبات)', cal:270},
+  {name:'أرز مع دجاج مشوي', cal:450},
+  {name:'أرز بالخضار', cal:350},
+  {name:'مكرونة بالصلصة', cal:420},
+  {name:'مكرونة بالدجاج', cal:480},
+  {name:'شاورما دجاج', cal:520},
+  {name:'شاورما لحم', cal:600},
+  {name:'برجر دجاج', cal:450},
+  {name:'برجر لحم', cal:550},
+  {name:'سلطة فتوش', cal:120},
+  {name:'سلطة خضراء', cal:80},
+  {name:'سلطة تبولة', cal:110},
+  {name:'شوربة عدس', cal:180},
+  {name:'شوربة دجاج', cal:150},
+  {name:'كبسة دجاج', cal:550},
+  {name:'كبسة لحم', cal:650},
+  {name:'مندي دجاج', cal:580},
+  {name:'سمك مشوي', cal:280},
+  {name:'سمك مقلي', cal:380},
+  {name:'دجاج مشوي', cal:320},
+  {name:'دجاج مقلي', cal:420},
+  {name:'تغريبة دجاج', cal:400},
+  {name:'ملوخية بالأرز', cal:350},
+  {name:'باميا باللحم', cal:380},
+  {name:'مرق لحم', cal:280},
+  {name:'محشي كوسة', cal:320},
+  {name:'ورق عنب', cal:290},
+  {name:'بيتزا (قطعتان)', cal:480},
+  {name:'بطاطس مقلية (وسط)', cal:320},
+  {name:'موز (حبة)', cal:90},
+  {name:'تفاحة', cal:80},
+  {name:'برتقالة', cal:60},
+  {name:'عنب (كوب)', cal:100},
+  {name:'زبادي عادي', cal:100},
+  {name:'زبادي يوناني', cal:130},
+  {name:'تمر (3 حبات)', cal:60},
+  {name:'مكسرات (حفنة)', cal:180},
+  {name:'قطعة كيك', cal:350},
+  {name:'كوكيز (2 حبة)', cal:160},
+  {name:'آيس كريم (كوب)', cal:250},
+  {name:'شوكولاتة (30غ)', cal:160},
+];
+
+// State
+let meals = JSON.parse(localStorage.getItem('weeklyMeals') || '{}');
+let currentContext = null; // {dayIdx, mealType}
+
+function save() {
+  localStorage.setItem('weeklyMeals', JSON.stringify(meals));
+}
+
+function getMeals(dayIdx, mealType) {
+  const key = `${dayIdx}_${mealType}`;
+  return meals[key] || [];
+}
+
+function buildTable() {
+  const tbody = document.getElementById('tableBody');
+  tbody.innerHTML = '';
+  
+  mealTypes.forEach(type => {
+    const tr = document.createElement('tr');
+    let html = `<td class="day-label">${mealLabels[type]}</td>`;
+    
+    for (let d = 0; d < 7; d++) {
+      const dayMeals = getMeals(d, type);
+      html += `<td>
+        <div class="meal-cell">
+          ${dayMeals.map((m,i) => `
+            <div class="meal-item ${type}">
+              <button class="remove-btn" onclick="removeMeal(${d},'${type}',${i})">✕</button>
+              <div class="meal-name">${m.name}</div>
+              <div class="meal-cal">${m.cal} كيلو كالوري</div>
+            </div>
+          `).join('')}
+          <button class="add-btn" onclick="openModal(${d},'${type}')">+ إضافة</button>
+        </div>
+      </td>`;
+    }
+    
+    // row total
+    const rowTotal = mealTypes.reduce((sum, t) => {
+      if (t !== type) return sum;
+      return sum + days.reduce((s, _, d) => s + getMeals(d, type).reduce((ss,m) => ss+m.cal, 0), 0);
+    }, 0);
+    html += `<td class="day-total" style="color:${mealColors[type]}">${rowTotal.toLocaleString()}</td>`;
+    
+    tr.innerHTML = html;
+    tbody.appendChild(tr);
+  });
+
+  // Totals row
+  const totalsRow = document.createElement('tr');
+  let totalHtml = `<td class="day-label" style="color:var(--accent)">📊 المجموع</td>`;
+  let grandTotal = 0;
+  
+  for (let d = 0; d < 7; d++) {
+    const dayTotal = mealTypes.reduce((sum, t) => sum + getMeals(d, t).reduce((s,m) => s+m.cal, 0), 0);
+    grandTotal += dayTotal;
+    totalHtml += `<td class="day-total">${dayTotal.toLocaleString()}</td>`;
+  }
+  totalHtml += `<td class="day-total" style="color:var(--accent);font-size:1.2rem">${grandTotal.toLocaleString()}</td>`;
+  totalsRow.innerHTML = totalHtml;
+  tbody.appendChild(totalsRow);
+
+  updateStats();
+  updateProgress();
+}
+
+function updateStats() {
+  let total = 0, bf = 0, lu = 0, di = 0;
+  for (let d = 0; d < 7; d++) {
+    bf += getMeals(d,'breakfast').reduce((s,m)=>s+m.cal,0);
+    lu += getMeals(d,'lunch').reduce((s,m)=>s+m.cal,0);
+    di += getMeals(d,'dinner').reduce((s,m)=>s+m.cal,0);
+  }
+  total = bf+lu+di;
+  document.getElementById('totalWeekCal').textContent = total.toLocaleString();
+  document.getElementById('avgDayCal').textContent = Math.round(total/7).toLocaleString();
+  document.getElementById('totalBreakfast').textContent = bf.toLocaleString();
+  document.getElementById('totalLunch').textContent = lu.toLocaleString();
+  document.getElementById('totalDinner').textContent = di.toLocaleString();
+}
+
+function updateProgress() {
+  const container = document.getElementById('progressBars');
+  container.innerHTML = '';
+  const recommended = 2000;
+
+  for (let d = 0; d < 7; d++) {
+    const dayTotal = mealTypes.reduce((sum,t) => sum + getMeals(d,t).reduce((s,m)=>s+m.cal,0), 0);
+    const pct = Math.min((dayTotal/recommended)*100, 100);
+    const color = pct > 100 ? '#e84343' : pct > 75 ? 'var(--accent)' : 'var(--accent3)';
+    
+    container.innerHTML += `
+      <div class="progress-row">
+        <div class="progress-label">${days[d]}</div>
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill" style="width:${pct}%;background:${color}"></div>
+        </div>
+        <div class="progress-val" style="color:${color}">${dayTotal.toLocaleString()}</div>
+      </div>`;
+  }
+}
+
+function openModal(dayIdx, mealType) {
+  currentContext = {dayIdx, mealType};
+  document.getElementById('modalTitle').textContent = `إضافة وجبة - ${days[dayIdx]} (${mealLabels[mealType]})`;
+  document.getElementById('mealNameInput').value = '';
+  document.getElementById('mealCalInput').value = '';
+  document.getElementById('suggestions').style.display = 'none';
+  document.getElementById('modalOverlay').classList.add('open');
+  setTimeout(() => document.getElementById('mealNameInput').focus(), 200);
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('open');
+  currentContext = null;
+}
+
+function saveMeal() {
+  const name = document.getElementById('mealNameInput').value.trim();
+  const cal = parseInt(document.getElementById('mealCalInput').value);
+  
+  if (!name || !cal || cal < 0) {
+    document.getElementById('mealNameInput').style.borderColor = '#e84343';
+    setTimeout(()=>document.getElementById('mealNameInput').style.borderColor='',1500);
+    return;
+  }
+  
+  const {dayIdx, mealType} = currentContext;
+  const key = `${dayIdx}_${mealType}`;
+  if (!meals[key]) meals[key] = [];
+  meals[key].push({name, cal});
+  save();
+  buildTable();
+  closeModal();
+}
+
+function removeMeal(dayIdx, mealType, idx) {
+  const key = `${dayIdx}_${mealType}`;
+  if (meals[key]) {
+    meals[key].splice(idx, 1);
+    if (meals[key].length === 0) delete meals[key];
+    save();
+    buildTable();
+  }
+}
+
+// Suggestions
+document.getElementById('mealNameInput').addEventListener('input', function() {
+  const q = this.value.trim().toLowerCase();
+  const sugDiv = document.getElementById('suggestions');
+  if (q.length < 1) { sugDiv.style.display='none'; return; }
+  
+  const matches = foodDB.filter(f => f.name.toLowerCase().includes(q)).slice(0,8);
+  if (!matches.length) { sugDiv.style.display='none'; return; }
+  
+  sugDiv.style.display = 'block';
+  sugDiv.innerHTML = matches.map(f => `
+    <div class="suggestion-item" onclick="selectSuggestion('${f.name}',${f.cal})">
+      <span>${f.name}</span>
+      <span class="suggestion-cal">${f.cal} ك.س</span>
+    </div>
+  `).join('');
+});
+
+function selectSuggestion(name, cal) {
+  document.getElementById('mealNameInput').value = name;
+  document.getElementById('mealCalInput').value = cal;
+  document.getElementById('suggestions').style.display = 'none';
+}
+
+document.getElementById('modalOverlay').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeModal();
+  if (e.key === 'Enter' && currentContext) saveMeal();
+});
+
+// Init
+buildTable();
+</script>
+</body>
+</html>
